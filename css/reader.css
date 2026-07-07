@@ -55,6 +55,10 @@ body {
 .btn-icon:hover {
     background: rgba(0,0,0,0.08);
 }
+.btn-icon:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
 
 .file-name {
     font-weight: 500;
@@ -166,6 +170,17 @@ body {
 .thickness-option.active {
     border-color: #0078d7;
     background: #e3f0ff;
+}
+
+/* ===== دکمه‌های جدید ===== */
+.btn-icon.active-tool {
+    background: #e3f0ff;
+    border: 1px solid #0078d7;
+    border-radius: 4px;
+}
+#eraserTool.active-tool {
+    background: #ffebee;
+    border-color: #d32f2f;
 }
 
 /* ===== جستجو ===== */
