@@ -19,12 +19,13 @@ const Search = (function() {
         }
         results = [];
         currentIndex = -1;
-        const q = query.toLowerCase();
+        // نرمال‌سازی برای تطابق بهتر با متن فارسی
+        const q = query.trim().toLowerCase().normalize('NFKC');
 
         for (let i = 1; i <= pdfDoc.numPages; i++) {
             const page = await pdfDoc.getPage(i);
             const textContent = await page.getTextContent();
-            const text = textContent.items.map(item => item.str).join(' ').toLowerCase();
+            const text = textContent.items.map(item => item.str).join(' ').toLowerCase().normalize('NFKC');
             let idx = text.indexOf(q);
             while (idx !== -1) {
                 results.push({ page: i, index: idx });
