@@ -1,27 +1,41 @@
 const Annotation = (function() {
     let currentFileId = '';
-    let activeTool = null; // 'highlight', 'pencil', 'text', 'eraser'
+    let activeTool = null;
     let currentColor = CONFIG.DEFAULT_COLOR;
     let currentThickness = CONFIG.DEFAULT_THICKNESS;
     let isDrawing = false;
     let drawPoints = [];
     let activeLayer = null;
     let annotationData = {};
+    let isDirty = false; // برای ذخیره‌سازی دستی
     
     // تاریخچه برای Undo/Redo
     let history = [];
     let historyIndex = -1;
     const MAX_HISTORY = 50;
+    let rafId = null; // برای animation frame
 
     // ----- بارگذاری و ذخیره -----
     function loadFromStorage() {
         const stored = localStorage.getItem(CONFIG.STORAGE_KEY);
         if (stored) try { annotationData = JSON.parse(stored); } catch(e) { annotationData = {}; }
         if (!annotationData[currentFileId]) annotationData[currentFileId] = {};
+        isDirty = false;
     }
 
     function saveToStorage() {
         localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(annotationData));
+        isDirty = false;
+        updateStatus('ذخیره شد ✅');
+    }
+
+    // ذخیره دستی (فقط در صورت نیاز)
+    function saveChanges() {
+        if (isDirty) {
+            saveToStorage();
+        } else {
+            updateStatus('تغییری برای ذخیره وجود ندارد');
+        }
     }
 
     function getPageAnnotations(pageNum) {
@@ -31,7 +45,8 @@ const Annotation = (function() {
     function setPageAnnotations(pageNum, anns) {
         if (!annotationData[currentFileId]) annotationData[currentFileId] = {};
         annotationData[currentFileId][pageNum] = anns;
-        saveToStorage();
+        isDirty = true; // علامت‌گذاری برای ذخیره بعدی
+        updateStatus(`${getPageAnnotations(pageNum).length} حاشیه‌نویسی (ذخیره نشده)`);
     }
 
     // ----- تاریخچه -----
@@ -41,6 +56,7 @@ const Annotation = (function() {
         if (history.length > MAX_HISTORY) history.shift();
         historyIndex = history.length - 1;
         updateUndoRedoButtons();
+        isDirty = true;
     }
 
     function undo() {
@@ -58,6 +74,7 @@ const Annotation = (function() {
         }
         historyIndex--;
         updateUndoRedoButtons();
+        isDirty = true;
         if (typeof Reader !== 'undefined') Reader.goToPage(parseInt(activeLayer?.dataset?.page || 1));
     }
 
@@ -76,6 +93,7 @@ const Annotation = (function() {
         }
         historyIndex++;
         updateUndoRedoButtons();
+        isDirty = true;
         if (typeof Reader !== 'undefined') Reader.goToPage(parseInt(activeLayer?.dataset?.page || 1));
     }
 
@@ -99,6 +117,7 @@ const Annotation = (function() {
                 el.style.width = ann.w + 'px';
                 el.style.height = ann.h + 'px';
                 el.style.backgroundColor = ann.color || currentColor;
+                el.style.opacity = '0.35'; // شفافیت بیشتر برای دیدن متن
                 el.dataset.annId = ann.id || Date.now() + '_' + Math.random();
                 layer.appendChild(el);
             } else if (ann.type === 'pencil') {
@@ -198,7 +217,7 @@ const Annotation = (function() {
         return path;
     }
 
-    // ----- رویدادهای لایه -----
+    // ----- رویدادهای لایه (با بهبود رسم مداد) -----
     function attachLayer(layer) {
         activeLayer = layer;
         if (!layer) return;
@@ -217,8 +236,11 @@ const Annotation = (function() {
     let isHighlighting = false;
     let highlightStart = null;
     let highlightRect = null;
+    let isDrawingPencil = false;
+    let pencilPath = null;
+    let tempSvg = null;
     let lastDrawTime = 0;
-    const DRAW_INTERVAL = 10;
+    const DRAW_INTERVAL = 8; // میلی‌ثانیه
 
     function onMouseDown(e) {
         if (!activeTool) return;
@@ -232,7 +254,7 @@ const Annotation = (function() {
             highlightRect = document.createElement('div');
             highlightRect.style.position = 'absolute';
             highlightRect.style.border = '1px dashed #0078d7';
-            highlightRect.style.backgroundColor = 'rgba(0,120,215,0.1)';
+            highlightRect.style.backgroundColor = 'rgba(0,120,215,0.08)';
             highlightRect.style.pointerEvents = 'none';
             highlightRect.style.left = x + 'px';
             highlightRect.style.top = y + 'px';
@@ -240,9 +262,26 @@ const Annotation = (function() {
             highlightRect.style.height = '0px';
             activeLayer.appendChild(highlightRect);
         } else if (activeTool === 'pencil') {
-            isDrawing = true;
+            isDrawingPencil = true;
             drawPoints = [{ x, y }];
-            createTempPencil();
+            // ایجاد SVG موقت
+            tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            tempSvg.classList.add('pencil-temp');
+            tempSvg.style.position = 'absolute';
+            tempSvg.style.top = '0';
+            tempSvg.style.left = '0';
+            tempSvg.style.width = '100%';
+            tempSvg.style.height = '100%';
+            tempSvg.style.pointerEvents = 'none';
+            pencilPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pencilPath.setAttribute('stroke', currentColor);
+            pencilPath.setAttribute('stroke-width', currentThickness);
+            pencilPath.setAttribute('fill', 'none');
+            pencilPath.setAttribute('stroke-linecap', 'round');
+            pencilPath.setAttribute('stroke-linejoin', 'round');
+            tempSvg.appendChild(pencilPath);
+            activeLayer.appendChild(tempSvg);
+            lastDrawTime = Date.now();
         }
     }
 
@@ -260,12 +299,16 @@ const Annotation = (function() {
             highlightRect.style.top = top + 'px';
             highlightRect.style.width = w + 'px';
             highlightRect.style.height = h + 'px';
-        } else if (activeTool === 'pencil' && isDrawing) {
+        } else if (activeTool === 'pencil' && isDrawingPencil) {
             const now = Date.now();
             if (now - lastDrawTime < DRAW_INTERVAL) return;
             lastDrawTime = now;
             drawPoints.push({ x, y });
-            updateTempPencil();
+            // به‌روزرسانی مسیر موقت با خطوط مستقیم (برای نمایش سریع)
+            if (drawPoints.length > 1) {
+                const d = 'M' + drawPoints.map(p => p.x + ',' + p.y).join(' L');
+                pencilPath.setAttribute('d', d);
+            }
         }
     }
 
@@ -285,16 +328,21 @@ const Annotation = (function() {
                 highlightRect = null;
                 highlightStart = null;
             }
-        } else if (activeTool === 'pencil' && isDrawing) {
-            isDrawing = false;
+        } else if (activeTool === 'pencil' && isDrawingPencil) {
+            isDrawingPencil = false;
             if (drawPoints.length > 1) {
                 const pageNum = parseInt(activeLayer.dataset.page);
+                // صاف‌سازی نهایی با منحنی‌های Bezier
                 const smoothPathData = smoothPath(drawPoints);
                 addPencil(pageNum, smoothPathData, currentColor, currentThickness);
             }
+            // حذف SVG موقت
+            if (tempSvg) {
+                tempSvg.remove();
+                tempSvg = null;
+                pencilPath = null;
+            }
             drawPoints = [];
-            const temp = activeLayer.querySelector('.pencil-temp');
-            if (temp) temp.remove();
         }
     }
 
@@ -310,50 +358,79 @@ const Annotation = (function() {
         }
     }
 
-    // پاک‌کن با کلیک روی حاشیه‌نویسی
+    // پاک‌کن با کلیک روی حاشیه‌نویسی (با شناسایی دقیق‌تر)
     function onLayerClick(e) {
         if (activeTool !== 'eraser') return;
-        const target = e.target.closest('[data-ann-id]');
-        if (!target) return;
+        // پیدا کردن نزدیک‌ترین عنصر با داده ann-id (می‌تواند روی خود عنصر یا فرزندان باشد)
+        let target = e.target;
+        while (target && target !== activeLayer) {
+            if (target.dataset && target.dataset.annId) {
+                break;
+            }
+            target = target.parentElement;
+        }
+        if (!target || !target.dataset || !target.dataset.annId) {
+            // اگر روی عنصر با ann-id نبود، شاید روی canvas کلیک شده باشد
+            // سعی می‌کنیم با مختصات کلیک، نزدیک‌ترین حاشیه‌نویسی را پیدا کنیم
+            const rect = activeLayer.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            const anns = getPageAnnotations(parseInt(activeLayer.dataset.page));
+            // جستجوی معکوس برای پیدا کردن نزدیک‌ترین آیتم
+            let found = null;
+            let minDist = 20; // حداکثر فاصله برای تشخیص کلیک
+            for (const ann of anns) {
+                if (ann.type === 'highlight') {
+                    const cx = ann.x + ann.w/2;
+                    const cy = ann.y + ann.h/2;
+                    const dist = Math.sqrt((clickX-cx)**2 + (clickY-cy)**2);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        found = ann;
+                    }
+                } else if (ann.type === 'pencil') {
+                    // برای مداد، فقط اولین نقطه را بررسی می‌کنیم
+                    const points = ann.path.match(/[\d.]+,[\d.]+/g);
+                    if (points) {
+                        for (const p of points) {
+                            const [px, py] = p.split(',').map(Number);
+                            const dist = Math.sqrt((clickX-px)**2 + (clickY-py)**2);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                found = ann;
+                            }
+                        }
+                    }
+                } else if (ann.type === 'text') {
+                    const dist = Math.sqrt((clickX-ann.x)**2 + (clickY-ann.y)**2);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        found = ann;
+                    }
+                }
+            }
+            if (found) {
+                const pageNum = parseInt(activeLayer.dataset.page);
+                deleteAnnotation(pageNum, found.id);
+                // حذف از DOM با پیدا کردن عنصر مربوطه
+                const elements = activeLayer.querySelectorAll('[data-ann-id]');
+                for (const el of elements) {
+                    if (el.dataset.annId === found.id) {
+                        el.remove();
+                        break;
+                    }
+                }
+                updateStatus();
+                return;
+            }
+            return;
+        }
         const annId = target.dataset.annId;
         if (!annId) return;
         const pageNum = parseInt(activeLayer.dataset.page);
         deleteAnnotation(pageNum, annId);
         target.remove();
         updateStatus();
-    }
-
-    // ----- توابع کمکی برای نمایش موقت مداد -----
-    function createTempPencil() {
-        let temp = activeLayer.querySelector('.pencil-temp');
-        if (!temp) {
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.classList.add('pencil-temp');
-            svg.style.position = 'absolute';
-            svg.style.top = '0';
-            svg.style.left = '0';
-            svg.style.width = '100%';
-            svg.style.height = '100%';
-            svg.style.pointerEvents = 'none';
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.setAttribute('stroke', currentColor);
-            path.setAttribute('stroke-width', currentThickness);
-            path.setAttribute('fill', 'none');
-            path.setAttribute('stroke-linecap', 'round');
-            path.setAttribute('stroke-linejoin', 'round');
-            svg.appendChild(path);
-            activeLayer.appendChild(svg);
-        }
-    }
-
-    function updateTempPencil() {
-        const temp = activeLayer.querySelector('.pencil-temp');
-        if (!temp) return;
-        const path = temp.querySelector('path');
-        if (drawPoints.length > 1) {
-            const d = 'M' + drawPoints.map(p => p.x + ',' + p.y).join(' L');
-            path.setAttribute('d', d);
-        }
     }
 
     // ----- درگ برای یادداشت -----
@@ -414,11 +491,16 @@ const Annotation = (function() {
         });
     }
 
-    function updateStatus() {
+    function updateStatus(message) {
         const page = parseInt(activeLayer?.dataset?.page || 1);
         const anns = getPageAnnotations(page);
         const count = anns ? anns.length : 0;
-        document.getElementById('statusAnnotation').textContent = count > 0 ? `${count} حاشیه‌نویسی` : 'بدون حاشیه‌نویسی';
+        const statusEl = document.getElementById('statusAnnotation');
+        if (message) {
+            statusEl.textContent = message;
+        } else {
+            statusEl.textContent = count > 0 ? `${count} حاشیه‌نویسی` : 'بدون حاشیه‌نویسی';
+        }
         updateUndoRedoButtons();
     }
 
@@ -444,6 +526,11 @@ const Annotation = (function() {
             activeLayer.removeEventListener('click', onLayerClick);
         }
         activeLayer = null;
+        if (tempSvg) {
+            tempSvg.remove();
+            tempSvg = null;
+            pencilPath = null;
+        }
     }
 
     // ----- API عمومی -----
@@ -458,6 +545,7 @@ const Annotation = (function() {
         addHighlight, addPencil, addTextNote,
         deleteAnnotation,
         undo, redo,
+        saveChanges,
         updateStatus
     };
 })();
