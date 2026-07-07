@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>مطالعه‌گر PDF</title>
+    <link rel="stylesheet" href="css/reader.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+    <div id="readerApp" class="reader-view">
+        <!-- نوار ابزار -->
+        <header class="reader-toolbar" id="readerToolbar">
+            <div class="toolbar-left">
+                <a href="index.html" class="btn-icon" id="backBtn" title="بازگشت">←</a>
+                <span class="file-name" id="fileNameDisplay">book.pdf</span>
+            </div>
+
+            <div class="toolbar-center">
+                <div class="page-nav">
+                    <button class="btn-icon" id="prevPage">◀</button>
+                    <span class="page-indicator">
+                        <input type="number" id="pageInput" value="1" min="1" />
+                        <span>/</span>
+                        <span id="totalPages">1</span>
+                    </span>
+                    <button class="btn-icon" id="nextPage">▶</button>
+                </div>
+
+                <div class="zoom-controls">
+                    <button class="btn-icon" id="zoomOut">−</button>
+                    <span class="zoom-level" id="zoomLevel">100%</span>
+                    <button class="btn-icon" id="zoomIn">+</button>
+                    <button class="btn-icon" id="fitWidth">⬌</button>
+                    <button class="btn-icon" id="fitPage">⬛</button>
+                </div>
+            </div>
+
+            <div class="toolbar-right">
+                <div class="tool-group">
+                    <button class="btn-tool" data-tool="highlight">🖍️ هایلایت</button>
+                    <button class="btn-tool" data-tool="pencil">✏️ مداد</button>
+                    <button class="btn-tool" data-tool="text">📝 یادداشت</button>
+                </div>
+
+                <div class="tool-divider"></div>
+
+                <div class="color-picker-group" id="colorPicker">
+                    <button class="color-swatch active" data-color="#ffeb3b" style="background:#ffeb3b;"></button>
+                    <button class="color-swatch" data-color="#f44336" style="background:#f44336;"></button>
+                    <button class="color-swatch" data-color="#ff9800" style="background:#ff9800;"></button>
+                    <button class="color-swatch" data-color="#4caf50" style="background:#4caf50;"></button>
+                    <button class="color-swatch" data-color="#2196f3" style="background:#2196f3;"></button>
+                    <button class="color-swatch" data-color="#9c27b0" style="background:#9c27b0;"></button>
+                    <button class="color-swatch" data-color="#000000" style="background:#000;"></button>
+                </div>
+
+                <div class="tool-divider"></div>
+
+                <div class="thickness-group">
+                    <button class="thickness-option" data-size="2">▬</button>
+                    <button class="thickness-option active" data-size="4">▬</button>
+                    <button class="thickness-option" data-size="8">▬</button>
+                </div>
+
+                <div class="tool-divider"></div>
+
+                <button class="btn-icon" id="searchToggle">🔍</button>
+                <button class="btn-icon" id="thumbnailsToggle">🖼️</button>
+            </div>
+        </header>
+
+        <!-- نوار جستجو -->
+        <div id="searchBar" class="search-bar" style="display:none;">
+            <input type="text" id="searchInput" placeholder="جستجو در متن..." />
+            <button class="btn-icon" id="searchPrev">◀</button>
+            <button class="btn-icon" id="searchNext">▶</button>
+            <span id="searchCount">0 / 0</span>
+            <button class="btn-icon" id="searchClose">✖</button>
+        </div>
+
+        <!-- بخش اصلی -->
+        <div class="reader-main">
+            <aside id="thumbnailsSidebar" class="thumbnails-sidebar collapsed">
+                <div class="thumbnails-header">
+                    <span>بند انگشتی</span>
+                    <button class="btn-icon" id="thumbnailsClose">✖</button>
+                </div>
+                <div class="thumbnails-list" id="thumbnailsList"></div>
+            </aside>
+
+            <div class="pdf-container" id="pdfContainer">
+                <div class="pdf-viewport" id="pdfViewport">
+                    <!-- پیام پیش‌فرض -->
+                    <div id="initialMessage" style="padding:60px;text-align:center;color:#666;font-size:18px;">
+                        در حال بارگذاری PDF...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- نوار وضعیت -->
+        <footer class="reader-statusbar">
+            <span id="statusInfo">آماده</span>
+            <span id="statusAnnotation">بدون حاشیه‌نویسی</span>
+        </footer>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/annotation.js"></script>
+    <script src="js/search.js"></script>
+    <script src="js/thumbnail.js"></script>
+    <script src="js/toolbar.js"></script>
+    <script src="js/reader.js"></script>
+</body>
+</html>
