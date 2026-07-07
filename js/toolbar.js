@@ -7,9 +7,14 @@ const Toolbar = (function() {
         initialized = true;
         api = deps;
 
-        // ابزارها
+        // ===== ابزارهای اصلی =====
         document.querySelectorAll('.btn-tool').forEach(btn => {
             btn.addEventListener('click', function() {
+                // اگر پاک‌کن فعال بود، غیرفعالش کن
+                if (api.annotation.getTool() === 'eraser') {
+                    api.annotation.setTool(null);
+                    document.getElementById('pdfViewport').style.cursor = 'default';
+                }
                 const tool = this.dataset.tool;
                 document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
                 if (api.annotation.getTool() === tool) {
@@ -25,21 +30,21 @@ const Toolbar = (function() {
             });
         });
 
-        // رنگ
+        // ===== رنگ =====
         document.querySelectorAll('.color-swatch').forEach(el => {
             el.addEventListener('click', function() {
                 api.annotation.setColor(this.dataset.color);
             });
         });
 
-        // ضخامت
+        // ===== ضخامت =====
         document.querySelectorAll('.thickness-option').forEach(el => {
             el.addEventListener('click', function() {
                 api.annotation.setThickness(parseInt(this.dataset.size));
             });
         });
 
-        // صفحه‌بندی
+        // ===== صفحه‌بندی =====
         document.getElementById('prevPage').addEventListener('click', api.prevPage);
         document.getElementById('nextPage').addEventListener('click', api.nextPage);
         document.getElementById('pageInput').addEventListener('change', function() {
@@ -47,13 +52,13 @@ const Toolbar = (function() {
             if (val > 0) api.goToPage(val);
         });
 
-        // زوم
+        // ===== زوم =====
         document.getElementById('zoomIn').addEventListener('click', api.zoomIn);
         document.getElementById('zoomOut').addEventListener('click', api.zoomOut);
         document.getElementById('fitWidth').addEventListener('click', api.fitWidth);
         document.getElementById('fitPage').addEventListener('click', api.fitPage);
 
-        // جستجو
+        // ===== جستجو =====
         const searchToggle = document.getElementById('searchToggle');
         const searchBar = document.getElementById('searchBar');
         searchToggle.addEventListener('click', () => {
@@ -69,11 +74,35 @@ const Toolbar = (function() {
         document.getElementById('searchPrev').addEventListener('click', () => api.search.navigateSearch(-1));
         document.getElementById('searchNext').addEventListener('click', () => api.search.navigateSearch(1));
 
-        // بند انگشتی
+        // ===== بند انگشتی =====
         const thumbToggle = document.getElementById('thumbnailsToggle');
         const thumbSidebar = document.getElementById('thumbnailsSidebar');
         thumbToggle.addEventListener('click', () => thumbSidebar.classList.toggle('collapsed'));
         document.getElementById('thumbnailsClose').addEventListener('click', () => thumbSidebar.classList.add('collapsed'));
+
+        // ===== پاک‌کن =====
+        document.getElementById('eraserTool').addEventListener('click', function() {
+            const currentTool = api.annotation.getTool();
+            // اگر هایلایت یا مداد فعال بود، غیرفعال کن
+            if (currentTool === 'highlight' || currentTool === 'pencil' || currentTool === 'text') {
+                document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
+            }
+            if (currentTool === 'eraser') {
+                api.annotation.setTool(null);
+            } else {
+                api.annotation.setTool('eraser');
+            }
+            document.getElementById('pdfViewport').style.cursor =
+                (api.annotation.getTool() === 'eraser') ? 'not-allowed' : 'default';
+        });
+
+        // ===== Undo / Redo =====
+        document.getElementById('undoBtn').addEventListener('click', function() {
+            api.annotation.undo();
+        });
+        document.getElementById('redoBtn').addEventListener('click', function() {
+            api.annotation.redo();
+        });
     }
 
     return { init };
