@@ -19,7 +19,6 @@ const Search = (function() {
         }
         results = [];
         currentIndex = -1;
-        // نرمال‌سازی برای تطابق بهتر با متن فارسی
         const q = query.trim().toLowerCase().normalize('NFKC');
 
         for (let i = 1; i <= pdfDoc.numPages; i++) {
