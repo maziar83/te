@@ -115,7 +115,6 @@ const Reader = (function() {
         if (initialMessage) initialMessage.textContent = 'در حال بارگذاری...';
 
         try {
-            // بررسی وجود فایل با fetch
             const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`فایل ${filename} یافت نشد (کد ${response.status})`);
@@ -174,7 +173,6 @@ const Reader = (function() {
         if (thumbnail) thumbnail.destroy();
     }
 
-    // دریافت پارامتر از URL
     const params = new URLSearchParams(window.location.search);
     const file = params.get('file');
     if (file) {
