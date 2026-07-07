@@ -10,7 +10,6 @@ const Toolbar = (function() {
         // ===== ابزارهای اصلی =====
         document.querySelectorAll('.btn-tool').forEach(btn => {
             btn.addEventListener('click', function() {
-                // اگر پاک‌کن فعال بود، غیرفعالش کن
                 if (api.annotation.getTool() === 'eraser') {
                     api.annotation.setTool(null);
                     document.getElementById('pdfViewport').style.cursor = 'default';
@@ -83,7 +82,6 @@ const Toolbar = (function() {
         // ===== پاک‌کن =====
         document.getElementById('eraserTool').addEventListener('click', function() {
             const currentTool = api.annotation.getTool();
-            // اگر هایلایت یا مداد فعال بود، غیرفعال کن
             if (currentTool === 'highlight' || currentTool === 'pencil' || currentTool === 'text') {
                 document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
             }
@@ -102,6 +100,11 @@ const Toolbar = (function() {
         });
         document.getElementById('redoBtn').addEventListener('click', function() {
             api.annotation.redo();
+        });
+
+        // ===== دکمه ذخیره =====
+        document.getElementById('saveBtn').addEventListener('click', function() {
+            api.annotation.saveChanges();
         });
     }
 
