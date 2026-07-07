@@ -309,10 +309,10 @@ body {
 }
 .hl-item {
     position: absolute;
-    background: rgba(255,235,59,0.5);
     border-radius: 2px;
     pointer-events: none;
-    mix-blend-mode: multiply;
+    opacity: 0.35;
+    mix-blend-mode: normal;
 }
 .pencil-item {
     position: absolute;
